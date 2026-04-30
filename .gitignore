@@ -1,0 +1,51 @@
+# ========================
+# Backend (NestJS)
+# ========================
+erasmus_platform/backend/.env
+erasmus_platform/backend/.env.local
+erasmus_platform/backend/.env.production
+erasmus_platform/backend/node_modules/
+erasmus_platform/backend/dist/
+erasmus_platform/backend/*.log
+erasmus_platform/backend/npm-debug.log*
+
+# ========================
+# Flutter (Mobile)
+# ========================
+erasmus_platform/mobile/.dart_tool/
+erasmus_platform/mobile/build/
+erasmus_platform/mobile/.flutter-plugins
+erasmus_platform/mobile/.flutter-plugins-dependencies
+erasmus_platform/mobile/.packages
+erasmus_platform/mobile/pubspec.lock
+erasmus_platform/mobile/.fvm/
+
+# Android
+erasmus_platform/mobile/android/.gradle/
+erasmus_platform/mobile/android/local.properties
+erasmus_platform/mobile/android/key.properties
+erasmus_platform/mobile/android/app/google-services.json
+
+# iOS
+erasmus_platform/mobile/ios/Pods/
+erasmus_platform/mobile/ios/.symlinks/
+erasmus_platform/mobile/ios/Flutter/flutter_export_environment.sh
+erasmus_platform/mobile/ios/GoogleService-Info.plist
+
+# ========================
+# IDE & Editör
+# ========================
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+Thumbs.db
+
+# ========================
+# Genel
+# ========================
+*.log
+*.tmp
+*.temp
