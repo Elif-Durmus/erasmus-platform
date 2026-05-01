@@ -38,7 +38,7 @@ class PostCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => context.push('/posts/${post['id']}'),
+        onTap: () => context.go('/posts/${post['id']}'),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(

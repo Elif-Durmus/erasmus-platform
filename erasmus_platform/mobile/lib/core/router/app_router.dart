@@ -12,6 +12,8 @@ import '../../features/messages/screens/conversations_screen.dart';
 import '../../features/messages/screens/chat_screen.dart';
 import '../../shared/screens/main_shell.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../../features/feed/screens/post_detail_screen.dart';
+import '../../features/profile/screens/edit_profile_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -46,6 +48,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/messages/:id',
         builder: (_, state) => ChatScreen(conversationId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/posts/:id',
+        builder: (_, state) => PostDetailScreen(postId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/profile/edit',
+        builder: (_, __) => const EditProfileScreen(),
       ),
     ],
   );

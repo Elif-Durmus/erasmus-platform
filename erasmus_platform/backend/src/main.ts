@@ -15,6 +15,12 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Authorization',
   });
+
+  // Türkçe karakter desteği
+  app.use((req: any, res: any, next: any) => {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    next();
+  });
   
   await app.listen(process.env.PORT ?? 3000);
   console.log('Erasmus API Çalışıyor: http://localhost:3000');
