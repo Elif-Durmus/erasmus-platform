@@ -5,6 +5,8 @@ import { Post } from './entities/post.entity';
 import { PostComment } from './entities/post-comment.entity';
 import { CreatePostDto } from './dto/create-post.dto';
 import { PostLike } from './entities/post-like.entity';
+import { NotificationsService } from '../notifications/notifications.service';
+
 
 @Injectable()
 export class PostsService {
@@ -15,6 +17,7 @@ export class PostsService {
     private postCommentRepo: Repository<PostComment>,
     @InjectRepository(PostLike)
     private postLikeRepo: Repository<PostLike>,
+    private notificationsService: NotificationsService,
   ) {}
 
   async getFeed(page = 1, limit = 20) {
@@ -50,6 +53,21 @@ export class PostsService {
       this.postLikeRepo.create({ postId, userId }),
     );
     await this.postRepo.increment({ id: postId }, 'likeCount', 1);
+
+    // Bildirim oluştur
+    const post = await this.postRepo.findOne({ where: { id: postId } });
+    if (post) {
+      await this.notificationsService.create({
+        userId: post.userId,
+        actorUserId: userId,
+        notificationType: 'post_like',
+        referenceType: 'post',
+        referenceId: postId,
+        title: 'Yeni beğeni',
+        body: 'Bir gönderini beğendi',
+      });
+    }
+
     return { success: true, liked: true };
   }
 
@@ -83,6 +101,21 @@ export class PostsService {
     const comment = this.postCommentRepo.create({ userId, postId, content });
     const saved = await this.postCommentRepo.save(comment);
     await this.postRepo.increment({ id: postId }, 'commentCount', 1);
+
+    // Bildirim oluştur
+    const post = await this.postRepo.findOne({ where: { id: postId } });
+    if (post) {
+      await this.notificationsService.create({
+        userId: post.userId,
+        actorUserId: userId,
+        notificationType: 'post_comment',
+        referenceType: 'post',
+        referenceId: postId,
+        title: 'Yeni yorum',
+        body: 'Gönderine yorum yaptı',
+      });
+    }
+
     return saved;
   }
 }

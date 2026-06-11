@@ -5,9 +5,13 @@ import { PostComment } from './entities/post-comment.entity';
 import { PostLike } from './entities/post-like.entity';
 import { PostsService } from './posts.service';
 import { PostsController } from './posts.controller';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Post, PostComment, PostLike])],
+  imports: [
+    TypeOrmModule.forFeature([Post, PostComment, PostLike]),
+    NotificationsModule,
+  ],
   controllers: [PostsController],
   providers: [PostsService],
 })

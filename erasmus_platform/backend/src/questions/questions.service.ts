@@ -3,12 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Question } from './entities/question.entity';
 import { Answer } from './entities/answer.entity';
+import { NotificationsService } from '../notifications/notifications.service';
+
 
 @Injectable()
 export class QuestionsService {
   constructor(
     @InjectRepository(Question) private questionRepo: Repository<Question>,
     @InjectRepository(Answer) private answerRepo: Repository<Answer>,
+    private notificationsService: NotificationsService,
   ) {}
 
   async getQuestions(page = 1, limit = 20) {
@@ -40,10 +43,26 @@ export class QuestionsService {
     return this.questionRepo.save(q);
   }
 
+
   async createAnswer(userId: string, questionId: string, content: string) {
     const answer = this.answerRepo.create({ userId, questionId, content });
     const saved = await this.answerRepo.save(answer);
     await this.questionRepo.increment({ id: questionId }, 'answerCount', 1);
+
+    const question = await this.questionRepo.findOne({ where: { id: questionId } });
+    if (question) {
+      await this.notificationsService.create({
+        userId: question.userId,
+        actorUserId: userId,
+        notificationType: 'question_answer',
+        referenceType: 'question',
+        referenceId: questionId,
+        title: 'Yeni cevap',
+        body: 'Sorunu cevapladı',
+      });
+    }
+
     return saved;
   }
+
 }
