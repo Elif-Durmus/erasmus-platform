@@ -58,6 +58,15 @@ export class PostsController {
     return this.postsService.createComment(user.userId, id, content);
   }
 
+  @Delete(':id/comments/:commentId')
+  @UseGuards(JwtAuthGuard)
+  deleteComment(
+    @CurrentUser() user: any,
+    @Param('commentId') commentId: string,
+  ) {
+    return this.postsService.deleteComment(user.userId, commentId);
+  }
+
   @Get(':id/liked')
   @UseGuards(JwtAuthGuard)
   isLiked(@CurrentUser() user: any, @Param('id') id: string) {

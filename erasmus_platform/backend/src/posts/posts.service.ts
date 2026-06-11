@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Post } from './entities/post.entity';
@@ -6,7 +6,6 @@ import { PostComment } from './entities/post-comment.entity';
 import { CreatePostDto } from './dto/create-post.dto';
 import { PostLike } from './entities/post-like.entity';
 import { NotificationsService } from '../notifications/notifications.service';
-
 
 @Injectable()
 export class PostsService {
@@ -130,5 +129,23 @@ export class PostsService {
       .orderBy('p.createdAt', 'DESC')
       .take(20)
       .getMany();
+  }
+
+  async deleteComment(userId: string, commentId: string) {
+    const comment = await this.postCommentRepo.findOne({
+      where: { id: commentId },
+    });
+    if (!comment) {
+      throw new NotFoundException('Yorum bulunamadı');
+    }
+    // Sadece kendi yorumunu silebilir
+    if (comment.userId !== userId) {
+      throw new ForbiddenException('Bu yorumu silme yetkiniz yok');
+    }
+
+    await this.postCommentRepo.delete({ id: commentId });
+    await this.postRepo.decrement({ id: comment.postId }, 'commentCount', 1);
+
+    return { success: true };
   }
 }
