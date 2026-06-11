@@ -12,6 +12,13 @@ export class QuestionsController {
     return this.questionsService.getQuestions(+page);
   }
 
+  // ÖNEMLİ: search, :id'den ÖNCE gelmeli
+  @Get('search')
+  searchQuestions(@Query('q') q: string) {
+    if (!q || q.trim().length < 2) return [];
+    return this.questionsService.searchQuestions(q.trim());
+  }
+
   @Get(':id')
   getOne(@Param('id') id: string) {
     return this.questionsService.getQuestion(id);

@@ -118,4 +118,17 @@ export class PostsService {
 
     return saved;
   }
+
+  async searchPosts(query: string) {
+    return this.postRepo
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.user', 'u')
+      .leftJoinAndSelect('u.profile', 'profile')
+      .where('p.title ILIKE :q OR p.content ILIKE :q', { q: `%${query}%` })
+      .andWhere('p.status = :status', { status: 'published' })
+      .andWhere('p.visibility = :visibility', { visibility: 'public' })
+      .orderBy('p.createdAt', 'DESC')
+      .take(20)
+      .getMany();
+  }
 }

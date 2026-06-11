@@ -13,6 +13,13 @@ export class PostsController {
     return this.postsService.getFeed(+page, +limit);
   }
 
+  // ÖNEMLİ: search, :id'den ÖNCE gelmeli
+  @Get('search')
+  searchPosts(@Query('q') q: string) {
+    if (!q || q.trim().length < 2) return [];
+    return this.postsService.searchPosts(q.trim());
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
   createPost(@CurrentUser() user: any, @Body() dto: CreatePostDto) {

@@ -65,4 +65,16 @@ export class QuestionsService {
     return saved;
   }
 
+  async searchQuestions(query: string) {
+    return this.questionRepo
+      .createQueryBuilder('q')
+      .leftJoinAndSelect('q.user', 'u')
+      .leftJoinAndSelect('u.profile', 'profile')
+      .where('q.title ILIKE :query OR q.content ILIKE :query', { query: `%${query}%` })
+      .andWhere('q.status = :status', { status: 'open' })
+      .orderBy('q.createdAt', 'DESC')
+      .take(20)
+      .getMany();
+  }
+
 }
