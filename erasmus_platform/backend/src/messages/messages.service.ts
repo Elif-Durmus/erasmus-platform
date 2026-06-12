@@ -22,16 +22,30 @@ export class MessagesService {
   }
 
   async getOrCreateDirect(userId1: string, userId2: string) {
-    // Var olan DM'i bul
-    const existing = await this.convRepo.createQueryBuilder('c')
-      .innerJoin('app.conversation_participants', 'p1', 'p1.conversation_id = c.id AND p1.user_id = :u1', { u1: userId1 })
-      .innerJoin('app.conversation_participants', 'p2', 'p2.conversation_id = c.id AND p2.user_id = :u2', { u2: userId2 })
+    // Var olan DM'i bul: iki kullanıcının da katılımcı olduğu direct konuşma
+    const existing = await this.convRepo
+      .createQueryBuilder('c')
+      .innerJoin(
+        ConversationParticipant,
+        'p1',
+        'p1.conversation_id = c.id AND p1.user_id = :u1',
+        { u1: userId1 },
+      )
+      .innerJoin(
+        ConversationParticipant,
+        'p2',
+        'p2.conversation_id = c.id AND p2.user_id = :u2',
+        { u2: userId2 },
+      )
       .where('c.conversation_type = :type', { type: 'direct' })
       .getOne();
 
     if (existing) return existing;
 
-    const conv = this.convRepo.create({ conversationType: 'direct', createdBy: userId1 });
+    const conv = this.convRepo.create({
+      conversationType: 'direct',
+      createdBy: userId1,
+    });
     await this.convRepo.save(conv);
 
     await this.participantRepo.save([
