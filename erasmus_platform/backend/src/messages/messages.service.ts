@@ -14,11 +14,46 @@ export class MessagesService {
   ) {}
 
   async getMyConversations(userId: string) {
-    return this.participantRepo.find({
+    const participations = await this.participantRepo.find({
       where: { userId, leftAt: null as any },
       relations: ['conversation'],
-      order: { conversation: { lastMessageAt: 'DESC' } as any },
     });
+
+    const result = await Promise.all(
+      participations.map(async (p) => {
+        const conv = p.conversation;
+
+        const otherParticipant = await this.participantRepo
+          .createQueryBuilder('cp')
+          .leftJoinAndSelect('cp.user', 'u')
+          .leftJoinAndSelect('u.profile', 'profile')
+          .where('cp.conversation_id = :convId', { convId: conv.id })
+          .andWhere('cp.user_id != :userId', { userId })
+          .getOne();
+
+        return {
+          conversation: conv,
+          otherUser: otherParticipant?.user
+            ? {
+                id: otherParticipant.user.id,
+                profile: (otherParticipant.user as any).profile,
+              }
+            : null,
+        };
+      }),
+    );
+
+    result.sort((a, b) => {
+      const aTime = a.conversation.lastMessageAt
+        ? new Date(a.conversation.lastMessageAt).getTime()
+        : 0;
+      const bTime = b.conversation.lastMessageAt
+        ? new Date(b.conversation.lastMessageAt).getTime()
+        : 0;
+      return bTime - aTime;
+    });
+
+    return result;
   }
 
   async getOrCreateDirect(userId1: string, userId2: string) {
