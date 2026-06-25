@@ -9,13 +9,14 @@ import { UsersController } from './users.controller';
 import { UploadModule } from '../upload/upload.module';
 import { UserFollow } from './entities/user-follow.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { Post } from '../posts/entities/post.entity';
 
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserProfile, UserExchange, UserFollow, Country, University]),
+    TypeOrmModule.forFeature([UserProfile, UserExchange, UserFollow, Country, University, Post]),
     UploadModule,
-    NotificationsModule,
+    NotificationsModule,  
   ],
   controllers: [UsersController],
   providers: [UsersService],

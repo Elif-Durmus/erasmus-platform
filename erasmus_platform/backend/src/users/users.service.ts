@@ -8,6 +8,7 @@ import { University } from './entities/university.entity';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserFollow } from './entities/user-follow.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { Post } from '../posts/entities/post.entity';
 
 
 @Injectable()
@@ -24,6 +25,8 @@ export class UsersService {
     @InjectRepository(UserFollow) 
     private followRepo: Repository<UserFollow>,
     private notificationsService: NotificationsService,
+    @InjectRepository(Post)
+    private postRepo: Repository<Post>,
   ) {}
 
   async getProfile(userId: string) {
@@ -150,5 +153,56 @@ export class UsersService {
     }
 
     return { followers, following, isFollowing };
+  }
+
+  async getFollowers(username: string) {
+    const profile = await this.profileRepo.findOne({ where: { username } });
+    if (!profile) throw new NotFoundException('Kullanıcı bulunamadı');
+
+    const follows = await this.followRepo.find({
+      where: { followedUserId: profile.userId },
+      order: { createdAt: 'DESC' },
+    });
+
+    // Takipçilerin profil bilgilerini getir
+    const followerIds = follows.map((f) => f.followerUserId);
+    if (followerIds.length === 0) return [];
+
+    return this.profileRepo
+      .createQueryBuilder('p')
+      .where('p.user_id IN (:...ids)', { ids: followerIds })
+      .getMany();
+  }
+
+  async getFollowing(username: string) {
+    const profile = await this.profileRepo.findOne({ where: { username } });
+    if (!profile) throw new NotFoundException('Kullanıcı bulunamadı');
+
+    const follows = await this.followRepo.find({
+      where: { followerUserId: profile.userId },
+      order: { createdAt: 'DESC' },
+    });
+
+    const followedIds = follows.map((f) => f.followedUserId);
+    if (followedIds.length === 0) return [];
+
+    return this.profileRepo
+      .createQueryBuilder('p')
+      .where('p.user_id IN (:...ids)', { ids: followedIds })
+      .getMany();
+  }
+
+  async getUserPosts(username: string) {
+    const profile = await this.profileRepo.findOne({ where: { username } });
+    if (!profile) throw new NotFoundException('Kullanıcı bulunamadı');
+
+    return this.postRepo
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.user', 'u')
+      .leftJoinAndSelect('u.profile', 'profile')
+      .where('p.user_id = :userId', { userId: profile.userId })
+      .andWhere('p.status = :status', { status: 'published' })
+      .orderBy('p.createdAt', 'DESC')
+      .getMany();
   }
 }

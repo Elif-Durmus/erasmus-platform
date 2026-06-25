@@ -85,6 +85,21 @@ export class UsersController {
     return this.usersService.getFollowStats(username, user.userId);
   }
 
+  @Get(':username/followers')
+  getFollowers(@Param('username') username: string) {
+    return this.usersService.getFollowers(username);
+  }
+
+  @Get(':username/following')
+  getFollowing(@Param('username') username: string) {
+    return this.usersService.getFollowing(username);
+  }
+
+  @Get(':username/posts')
+  getUserPosts(@Param('username') username: string) {
+    return this.usersService.getUserPosts(username);
+  }
+
   @Get(':username')
   getByUsername(@Param('username') username: string) {
     return this.usersService.getProfileByUsername(username);
