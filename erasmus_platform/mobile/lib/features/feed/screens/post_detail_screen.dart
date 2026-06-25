@@ -2,10 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/api_client.dart';
+import '../../../core/utils/time_ago.dart';
 
-final postDetailProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, id) async {
+final postDetailProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>, String>((ref, id) async {
   final res = await apiClient.dio.get('/posts/$id');
   return res.data as Map<String, dynamic>;
+});
+
+// Giriş yapan kullanıcının ID'sini almak için
+final currentUserIdProvider = FutureProvider.autoDispose<String?>((ref) async {
+  try {
+    final res = await apiClient.dio.get('/users/me');
+    return res.data['userId'] as String? ?? res.data['user']?['id'] as String?;
+  } catch (_) {
+    return null;
+  }
 });
 
 class PostDetailScreen extends ConsumerStatefulWidget {
@@ -19,6 +31,7 @@ class PostDetailScreen extends ConsumerStatefulWidget {
 class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   final _commentCtrl = TextEditingController();
   bool _submitting = false;
+  int _commentsKey = 0; // yorumları yenilemek için
 
   @override
   void dispose() {
@@ -41,7 +54,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       );
       _commentCtrl.clear();
       ref.refresh(postDetailProvider(widget.postId));
-      setState(() {}); // yorumları yenile
+      setState(() => _commentsKey++); // yorumları yenile
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -51,6 +64,50 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  Future<void> _deleteComment(String commentId) async {
+    try {
+      await apiClient.dio
+          .delete('/posts/${widget.postId}/comments/$commentId');
+      ref.refresh(postDetailProvider(widget.postId));
+      setState(() => _commentsKey++);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Yorum silindi')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Hata: $e')),
+        );
+      }
+    }
+  }
+
+  void _confirmDelete(String commentId) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Yorumu Sil'),
+        content: const Text('Bu yorumu silmek istediğinize emin misiniz?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('İptal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteComment(commentId);
+            },
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Sil'),
+          ),
+        ],
+      ),
+    );
   }
 
   String _typeLabel(String type) {
@@ -68,6 +125,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final postAsync = ref.watch(postDetailProvider(widget.postId));
+    final currentUserId = ref.watch(currentUserIdProvider).valueOrNull;
 
     return Scaffold(
       appBar: AppBar(
@@ -96,7 +154,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Kullanıcı bilgisi
                       Row(
                         children: [
                           CircleAvatar(
@@ -114,19 +171,34 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                                 : null,
                           ),
                           const SizedBox(width: 10),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                profile?['fullName'] ?? 'Kullanıcı',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600),
-                              ),
-                              Text(
-                                '@${profile?['username'] ?? ''}',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
+                          GestureDetector(
+                            onTap: () {
+                              final username = profile?['username'];
+                              if (username != null) {
+                                context.push('/profile/$username');
+                              }
+                            },
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  profile?['fullName'] ?? 'Kullanıcı',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600),
+                                ),
+                                Text(
+                                  '@${profile?['username'] ?? ''}',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                                if (post['createdAt'] != null)
+                                Text(
+                                  timeAgo(post['createdAt']),
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Theme.of(context).colorScheme.outline,
+                                      ),
+                                ),     
+                              ],
+                            ),
                           ),
                           const Spacer(),
                           Container(
@@ -152,7 +224,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      // Başlık
                       if (post['title'] != null) ...[
                         Text(
                           post['title'],
@@ -163,13 +234,11 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         ),
                         const SizedBox(height: 12),
                       ],
-                      // İçerik
                       Text(
                         post['content'] ?? '',
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
                       const SizedBox(height: 16),
-                      // Beğeni ve yorum sayısı
                       Row(
                         children: [
                           _LikeButton(postId: widget.postId, post: post),
@@ -182,14 +251,13 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         ],
                       ),
                       const Divider(height: 32),
-                      // Yorumlar başlığı
                       Text(
                         'Yorumlar',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 8),
-                      // Yorum listesi
                       FutureBuilder<List<dynamic>>(
+                        key: ValueKey(_commentsKey),
                         future: _fetchComments(),
                         builder: (context, snapshot) {
                           if (snapshot.connectionState ==
@@ -203,8 +271,13 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                           }
                           return Column(
                             children: snapshot.data!.map((comment) {
-                              final commentProfile = comment['user']
-                                  ?['profile'] as Map<String, dynamic>?;
+                              final commentProfile = comment['user']?['profile']
+                                  as Map<String, dynamic>?;
+                              final commentUserId = comment['userId'] ??
+                                  comment['user']?['id'];
+                              final isMyComment = currentUserId != null &&
+                                  commentUserId == currentUserId;
+
                               return Padding(
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 8),
@@ -213,12 +286,23 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                                   children: [
                                     CircleAvatar(
                                       radius: 16,
-                                      child: Text(
-                                        (commentProfile?['fullName'] as String?)
-                                                ?.substring(0, 1)
-                                                .toUpperCase() ??
-                                            '?',
-                                      ),
+                                      backgroundImage: commentProfile?[
+                                                  'profilePhotoUrl'] !=
+                                              null
+                                          ? NetworkImage(commentProfile![
+                                              'profilePhotoUrl'])
+                                          : null,
+                                      child: commentProfile?[
+                                                  'profilePhotoUrl'] ==
+                                              null
+                                          ? Text(
+                                              (commentProfile?['fullName']
+                                                          as String?)
+                                                      ?.substring(0, 1)
+                                                      .toUpperCase() ??
+                                                  '?',
+                                            )
+                                          : null,
                                     ),
                                     const SizedBox(width: 10),
                                     Expanded(
@@ -238,9 +322,15 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                                               const SizedBox(width: 6),
                                               Text(
                                                 '@${commentProfile?['username'] ?? ''}',
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .bodySmall,
+                                                style: Theme.of(context).textTheme.bodySmall,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                timeAgo(comment['createdAt']),
+                                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                      color: Theme.of(context).colorScheme.outline,
+                                                      fontSize: 11,
+                                                    ),
                                               ),
                                             ],
                                           ),
@@ -249,6 +339,14 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                                         ],
                                       ),
                                     ),
+                                    // Sadece kendi yorumunda silme ikonu
+                                    if (isMyComment)
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline,
+                                            size: 20, color: Colors.red),
+                                        onPressed: () =>
+                                            _confirmDelete(comment['id']),
+                                      ),
                                   ],
                                 ),
                               );
@@ -260,7 +358,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   ),
                 ),
               ),
-              // Yorum yazma alanı
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(

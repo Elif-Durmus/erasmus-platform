@@ -14,33 +14,59 @@ import '../../shared/screens/main_shell.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/feed/screens/post_detail_screen.dart';
 import '../../features/profile/screens/edit_profile_screen.dart';
+import '../../features/questions/screens/create_question_screen.dart';
+import '../../features/profile/screens/exchange_screen.dart';
+import '../../features/notifications/screens/notifications_screen.dart';
+import '../../features/profile/screens/user_profile_screen.dart';
+import '../../features/reviews/screens/reviews_home_screen.dart';
+import '../../features/reviews/screens/university_reviews_screen.dart';
+import '../../features/reviews/screens/create_review_screen.dart';
+import '../../features/search/screens/search_screen.dart';
+import '../../features/splash/splash_screen.dart';
+import '../../features/profile/screens/follow_list_screen.dart';
+import '../../features/profile/screens/user_posts_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
 
   return GoRouter(
-    initialLocation: authState.isAuthenticated ? '/feed' : '/login',
+    initialLocation: '/splash',
     redirect: (context, state) {
+      final isInitializing = authState.isInitializing;
       final isAuth = authState.isAuthenticated;
-      final isLoginPage = state.matchedLocation == '/login' || state.matchedLocation == '/register';
+      final loc = state.matchedLocation;
+
+      // Henüz token kontrol ediliyor → splash'ta kal
+      if (isInitializing) {
+        return loc == '/splash' ? null : '/splash';
+      }
+
+      // Kontrol bitti, splash'tan çık
+      final isLoginPage = loc == '/login' || loc == '/register';
+      if (loc == '/splash') {
+        return isAuth ? '/feed' : '/login';
+      }
+
       if (!isAuth && !isLoginPage) return '/login';
       if (isAuth && isLoginPage) return '/feed';
       return null;
     },
     routes: [
-      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-      GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
+      GoRoute(path: '/splash', builder: (_, _) => const SplashScreen()),
+      GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+      GoRoute(path: '/register', builder: (_, _) => const RegisterScreen()),
       ShellRoute(
         builder: (ctx, state, child) => MainShell(child: child),
         routes: [
-          GoRoute(path: '/feed', builder: (_, __) => const FeedScreen()),
-          GoRoute(path: '/questions', builder: (_, __) => const QuestionsScreen()),
-          GoRoute(path: '/messages', builder: (_, __) => const ConversationsScreen()),
-          GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+          GoRoute(path: '/feed', builder: (_, _) => const FeedScreen()),
+          GoRoute(path: '/questions', builder: (_, _) => const QuestionsScreen()),
+          GoRoute(path: '/messages', builder: (_, _) => const ConversationsScreen()),
+          GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
+          GoRoute(path: '/reviews', builder: (_, _) => const ReviewsHomeScreen()),
         ],
       ),
-      GoRoute(path: '/posts/new', builder: (_, __) => const CreatePostScreen()),
-      GoRoute(path: '/questions/new', builder: (_, __) => const QuestionDetailScreen(questionId: 'new')),
+      GoRoute(path: '/posts/new', builder: (_, _) => const CreatePostScreen()),
+      GoRoute(path: '/questions/new', builder: (_, _) => const CreateQuestionScreen()),      
       GoRoute(
         path: '/questions/:id',
         builder: (_, state) => QuestionDetailScreen(questionId: state.pathParameters['id']!),
@@ -55,7 +81,58 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/profile/edit',
-        builder: (_, __) => const EditProfileScreen(),
+        builder: (_, _) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: '/profile/exchanges',
+        builder: (_, _) => const ExchangeScreen(),
+      ),
+      GoRoute(
+        path: '/profile/:username/followers',
+        builder: (_, state) => FollowListScreen(
+          username: state.pathParameters['username']!,
+          type: 'followers',
+        ),
+      ),
+      GoRoute(
+        path: '/profile/:username/following',
+        builder: (_, state) => FollowListScreen(
+          username: state.pathParameters['username']!,
+          type: 'following',
+        ),
+      ),
+      GoRoute(
+        path: '/profile/:username/posts',
+        builder: (_, state) => UserPostsScreen(
+          username: state.pathParameters['username']!,
+        ),
+      ),
+      // Sonra dinamik :username
+      GoRoute(
+        path: '/profile/:username',
+        builder: (_, state) => UserProfileScreen(username: state.pathParameters['username']!),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (_, _) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/search',
+        builder: (_, _) => const SearchScreen(),
+      ),
+      GoRoute(
+        path: '/reviews/university/:id',
+        builder: (_, state) => UniversityReviewsScreen(
+          universityId: state.pathParameters['id']!,
+          universityName: state.extra as String? ?? 'Üniversite',
+        ),
+      ),
+      GoRoute(
+        path: '/reviews/university/:id/new',
+        builder: (_, state) => CreateReviewScreen(
+          universityId: state.pathParameters['id']!,
+          universityName: state.extra as String? ?? 'Üniversite',
+        ),
       ),
     ],
   );

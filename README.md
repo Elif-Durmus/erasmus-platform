@@ -1,28 +1,78 @@
-# Erasmus Platform
+# Erasmus Öğrenci Platformu
 
-Erasmus öğrencilerinin deneyimlerini paylaşabildiği, birbirleriyle iletişim kurabildiği ve yeni adaylara rehberlik edebildiği mobil platform.
+Erasmus değişim programına katılan veya katılmayı planlayan öğrencilerin deneyimlerini paylaşabildiği, birbirlerine sorular sorabildiği, üniversiteleri değerlendirebildiği ve gerçek zamanlı iletişim kurabildiği kapsamlı bir mobil platform.
 
-## Teknoloji Stack
+> **BM328 Bilgisayar Mühendisliği Tasarım Çalışması II** kapsamında geliştirilmiştir.
+> Bilecik Şeyh Edebali Üniversitesi — Bilgisayar Mühendisliği Bölümü
+
+---
+
+## İçindekiler
+
+- [Teknoloji Altyapısı](#teknoloji-altyapısı)
+- [Özellikler](#özellikler)
+- [Mimari](#mimari)
+- [Kurulum](#kurulum)
+- [Bulut Dağıtımı (Railway)](#bulut-dağıtımı-railway)
+- [APK Oluşturma](#apk-oluşturma)
+- [Proje Yapısı](#proje-yapısı)
+- [API Uç Noktaları](#api-uç-noktaları)
+- [Sık Karşılaşılan Sorunlar](#sık-karşılaşılan-sorunlar)
+
+---
+
+## Teknoloji Altyapısı
 
 | Katman | Teknoloji |
 |--------|-----------|
-| Mobil | Flutter (Android) |
-| Backend | NestJS (Node.js) |
-| Veritabanı | PostgreSQL 18 |
-| Auth | JWT (JSON Web Token) |
+| Mobil (İstemci) | Flutter (Android) / Dart |
+| Backend (Sunucu) | NestJS (Node.js) / TypeScript |
+| Veritabanı | PostgreSQL |
+| ORM | TypeORM |
+| Kimlik Doğrulama | JWT (JSON Web Token) + bcrypt |
 | Gerçek Zamanlı | Socket.IO (WebSocket) |
-| State Management | Riverpod |
-| HTTP Client | Dio |
-| Navigation | GoRouter |
+| Durum Yönetimi | Riverpod |
+| HTTP İstemcisi | Dio |
+| Yönlendirme | GoRouter |
+| Medya Depolama | Cloudinary |
+| Bulut Dağıtımı | Railway |
+| Sürüm Kontrolü | Git / GitHub |
+
+---
 
 ## Özellikler
 
-- Kullanıcı kayıt ve giriş sistemi
-- Profil görüntüleme ve düzenleme
-- Post paylaşma ve feed (Deneyim, Tavsiye, Uyarı, Konut, Etkinlik, Akademik)
-- Soru-Cevap sistemi
-- Gerçek zamanlı mesajlaşma (WebSocket)
-- Ülke, şehir, üniversite hiyerarşisi
+- **Kimlik doğrulama** — JWT tabanlı güvenli kayıt ve giriş, bcrypt ile parola koruması
+- **Profil yönetimi** — Cloudinary ile profil fotoğrafı, seçmeli bölüm/eğitim seviyesi, biyografi
+- **Erasmus değişim bilgisi** — ülke/üniversite/dönem seçimi, takvim ile tarih seçimi
+- **Gönderi akışı** — 6 kategori (Deneyim, Tavsiye, Uyarı, Konut, Etkinlik, Akademik)
+- **Beğeni ve yorum** — yorum silme (sahiplik kontrolü ile), göreli zaman gösterimi
+- **Soru-Cevap** — anonim soru sorma seçeneği
+- **Üniversite değerlendirme** — 7 boyutlu puanlama (akademik, sosyal, konaklama, ulaşım, güvenlik, maliyet, destek), aranabilir üniversite listesi
+- **Arama** — kullanıcı, gönderi ve soru arama (debounce ile)
+- **Takip sistemi** — takip et/bırak, takipçi/takip/paylaşım listeleri
+- **Bildirimler** — beğeni, yorum, cevap ve takip bildirimleri (okunmamış rozeti ile)
+- **Gerçek zamanlı mesajlaşma** — Socket.IO ile anlık birebir sohbet
+- **Splash screen** — oturum durumu kontrolü ile açılış ekranı
+- 30 ülke ve 150+ üniversite içeren başlangıç verisi
+
+---
+
+## Mimari
+
+Sistem üç katmanlı bir mimariyle tasarlanmıştır:
+
+```
+┌─────────────────┐     HTTP/REST + WebSocket     ┌──────────────────┐     TypeORM     ┌──────────────┐
+│  Flutter (Mobil)│ ◄──────────────────────────► │  NestJS (Sunucu) │ ◄────────────► │  PostgreSQL  │
+│   Android APK   │         JSON / JWT            │  REST + Socket.IO│                │  (app şeması)│
+└─────────────────┘                               └──────────────────┘                └──────────────┘
+                                                          │
+                                                          ▼
+                                                   ┌──────────────┐
+                                                   │  Cloudinary  │ (görsel depolama)
+                                                   └──────────────┘
+```
 
 ---
 
@@ -30,12 +80,10 @@ Erasmus öğrencilerinin deneyimlerini paylaşabildiği, birbirleriyle iletişim
 
 ### Gereksinimler
 
-Başlamadan önce şunların kurulu olduğundan emin ol:
-
 - [Node.js](https://nodejs.org/) v18 veya üzeri
 - [Flutter SDK](https://flutter.dev/docs/get-started/install) v3.x
 - [PostgreSQL](https://www.postgresql.org/download/) v15 veya üzeri
-- [pgAdmin 4](https://www.pgadmin.org/download/) (PostgreSQL yönetimi için)
+- [pgAdmin 4](https://www.pgadmin.org/download/)
 - [Android Studio](https://developer.android.com/studio) (Android SDK için)
 - [Git](https://git-scm.com/)
 
@@ -43,290 +91,186 @@ Başlamadan önce şunların kurulu olduğundan emin ol:
 
 ```bash
 git clone https://github.com/Elif-Durmus/erasmus-platform.git
-cd erasmus-platform
+cd erasmus-platform/erasmus_platform
 ```
 
----
+### 2 — Veritabanı kurulumu
 
-### 2 — Veritabanı Kurulumu
+`database/` klasöründeki SQL dosyalarını **sırayla** çalıştır (pgAdmin Query Tool ile):
 
-#### 2.1 — PostgreSQL servisinin çalıştığından emin ol
+1. `002_extensions_and_schema.sql` — uzantılar ve `app` şeması
+2. `003_types.sql` — ENUM tipleri
+3. `004_core_tables.sql` — temel tablolar
+4. `005_content_tables.sql` — içerik tabloları
+5. `006_messaging_tables.sql` — mesajlaşma tabloları
+6. `007_social_tables.sql` — sosyal tablolar
+7. `008_indexes.sql` — indeksler
+8. `009_triggers.sql` — tetikleyiciler
+9. `010_seed.sql` — başlangıç verisi
+10. `011_seed_expanded.sql` — genişletilmiş ülke/üniversite verisi (30 ülke, 150+ üniversite)
 
-**Windows:**
-- Başlat menüsünde "Hizmetler" yaz ve aç
-- `postgresql-x64-18` (veya kurulu sürümün) servisini bul
-- Çalışmıyorsa sağ tıkla → Başlat
+> **Not:** `001_create_app_user_and_db.sql` yalnızca yerel kurulumda, ayrı bir veritabanı/kullanıcı oluşturmak için kullanılır. Railway gibi hazır PostgreSQL örneklerinde bu adım atlanır.
 
-**Mac/Linux:**
-```bash
-brew services start postgresql  # Mac
-sudo service postgresql start   # Linux
-```
-
-#### 2.2 — pgAdmin ile veritabanını kur
-
-1. pgAdmin'i aç ve `postgres` kullanıcısıyla bağlan
-2. Sol panelde **Databases** üzerine sağ tıkla → **Create → Database**
-3. Database adı: `erasmus_db` → Save
-4. `erasmus_db`'ye tıkla → **Query Tool** aç
-5. Aşağıdaki SQL'i çalıştır (F5):
-
-```sql
-CREATE USER erasmus_user WITH PASSWORD 'ErasmusApp_2026_DB!';
-GRANT ALL PRIVILEGES ON DATABASE erasmus_db TO erasmus_user;
-```
-
-#### 2.3 — Migration dosyalarını çalıştır
-
-`database/` klasöründeki SQL dosyalarını pgAdmin Query Tool'da sırayla çalıştır:
-
-> **Önemli:** Her dosyayı çalıştırmadan önce bağlantının `erasmus_db` veritabanında olduğunu kontrol et.
-
-```
-002_extensions_and_schema.sql
-003_types.sql
-004_core_tables.sql
-005_content_tables.sql
-006_messaging_tables.sql
-007_social_tables.sql
-008_indexes.sql
-009_triggers.sql
-010_seed.sql
-```
-
-Her dosyadan sonra `Query returned successfully` mesajı görmelisin.
-
-#### 2.4 — İzinleri ver
-
-Migration'lar bittikten sonra şunu çalıştır:
-
-```sql
-GRANT ALL PRIVILEGES ON SCHEMA app TO erasmus_user;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA app TO erasmus_user;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA app TO erasmus_user;
-```
-
----
-
-### 3 — Backend Kurulumu
+### 3 — Backend kurulumu
 
 ```bash
 cd erasmus_platform/backend
-```
-
-#### 3.1 — Paketleri yükle
-
-```bash
 npm install
 ```
 
-#### 3.2 — `.env` dosyası oluştur
-
-> **Not:** `.env` dosyası güvenlik nedeniyle repoda bulunmaz. Klonlayan herkes kendi `.env` dosyasını oluşturmalıdır.
-
-`backend` klasörünün içinde, `src` klasörüyle aynı seviyeye `.env` adında bir dosya oluştur ve şunları yapıştır:
+`backend/` klasöründe bir `.env` dosyası oluştur (bu dosya gizlidir, repoya dahil değildir):
 
 ```env
+# Yerel geliştirme için (ayrı değişkenler)
 DATABASE_HOST=localhost
 DATABASE_PORT=5432
 DATABASE_USER=erasmus_user
-DATABASE_PASSWORD=ErasmusApp_2026_DB!
+DATABASE_PASSWORD=SENIN_SIFREN
 DATABASE_NAME=erasmus_db
-JWT_SECRET=erasmus_super_secret_jwt_2026
+
+# Veya bulut için tek bağlantı adresi
+# DATABASE_URL=postgresql://...
+
+JWT_SECRET=guclu_bir_gizli_anahtar
 JWT_EXPIRES_IN=7d
 PORT=3000
+
+# Cloudinary (https://cloudinary.com adresinden ücretsiz hesap)
+CLOUDINARY_CLOUD_NAME=cloud_adin
+CLOUDINARY_API_KEY=api_anahtarin
+CLOUDINARY_API_SECRET=api_gizli_anahtarin
+CLOUDINARY_UPLOAD_PRESET=erasmus_uploads
 ```
 
-#### 3.3 — Backend'i başlat
+Backend'i başlat:
 
 ```bash
 npm run start:dev
 ```
 
-Terminalde şunu görmelisin:
-```
-Erasmus API Çalışıyor: http://localhost:3000
-```
+Başarılı olursa terminalde `Erasmus API Çalışıyor` mesajını görürsün.
 
-#### 3.4 — API'yi test et
-
-Tarayıcıda aç: `http://localhost:3000/posts`
-
-Şu yanıtı görmelisin:
-```json
-{"posts": [], "total": 0, "page": 1, "limit": 20}
-```
-
----
-
-### 4 — Flutter Kurulumu
+### 4 — Mobil uygulama kurulumu
 
 ```bash
 cd erasmus_platform/mobile
-```
-
-#### 4.1 — Paketleri yükle
-
-```bash
 flutter pub get
 ```
 
-#### 4.2 — API adresini ayarla
+`lib/core/api/api_client.dart` dosyasındaki `baseUrl` değerini ortamına göre ayarla:
 
-`lib/core/api/api_client.dart` dosyasını aç ve çalıştırma ortamına göre URL'i güncelle:
+| Ortam | baseUrl |
+|-------|---------|
+| Android Emülatör | `http://10.0.2.2:3000` |
+| Gerçek cihaz (aynı WiFi) | `http://BILGISAYAR_IP:3000` |
+| Bulut (Railway) | `https://erasmus-platform-production.up.railway.app` |
 
-```dart
-// Chrome'da çalıştırıyorsan:
-static const String baseUrl = 'http://localhost:3000';
+Uygulamayı çalıştır (cihaz USB ile bağlıyken):
 
-// Android emülatörde çalıştırıyorsan:
-static const String baseUrl = 'http://10.0.2.2:3000';
-
-// Gerçek Android cihazda (USB) çalıştırıyorsan bilgisayarının IP'sini yaz:
-static const String baseUrl = 'http://192.168.1.X:3000';
-```
-
-Bilgisayarının IP'sini öğrenmek için:
-```bash
-# Windows (CMD):
-ipconfig | findstr IPv4
-
-# Mac/Linux:
-ip route get 1 | awk '{print $7}'
-```
-
-#### 4.3 — Uygulamayı çalıştır
-
-**Chrome'da (hızlı test için):**
-```bash
-flutter run -d chrome
-```
-
-**Android emülatörde:**
-1. Android Studio'yu aç
-2. Device Manager → Create Device → Pixel 6 → API 34 → Finish
-3. Emülatörü başlat (▶ Play butonu)
-4. `api_client.dart`'ta URL'i `http://10.0.2.2:3000` yap
-5. Terminalde:
-```bash
-flutter run
-```
-
-**Gerçek Android cihazda:**
-1. Telefonda: Ayarlar → Telefon Hakkında → Derleme Numarası'na 7 kez dokun
-2. Ayarlar → Geliştirici Seçenekleri → USB Hata Ayıklama'yı aç
-3. USB ile bilgisayara bağla → "İzin Ver" de
-4. `api_client.dart`'ta URL'i bilgisayarının IP'siyle güncelle
-5. Terminalde:
 ```bash
 flutter run
 ```
 
 ---
 
-## Proje Klasör Yapısı
+## Bulut Dağıtımı (Railway)
+
+Proje, yerel ortamdan bağımsız çalışacak şekilde [Railway](https://railway.app) üzerine dağıtılmıştır.
+
+1. Railway'de bir **PostgreSQL** servisi oluştur
+2. Veritabanı tablolarını (yukarıdaki SQL dosyaları) Railway veritabanında çalıştır
+3. GitHub deposunu Railway'e bağla, **Root Directory** olarak `erasmus_platform/backend` ayarla
+4. Ortam değişkenlerini (`DATABASE_URL`, `JWT_SECRET`, `CLOUDINARY_*`) Railway'de tanımla
+5. Servise public bir domain ata
+6. Mobil uygulamada `baseUrl`'ü bu domaine güncelle
+
+> Backend, `DATABASE_URL` ortam değişkeni varsa otomatik olarak bulut moduna (SSL ile) geçer; yoksa yerel ayrı değişkenleri kullanır.
+
+---
+
+## APK Oluşturma
+
+```bash
+cd erasmus_platform/mobile
+flutter build apk --release
+```
+
+Oluşan APK: `build/app/outputs/flutter-apk/app-release.apk`
+
+> **Önemli:** Release APK'nın internete erişebilmesi için `android/app/src/main/AndroidManifest.xml` dosyasında `INTERNET` izni tanımlı olmalıdır.
+
+---
+
+## Proje Yapısı
 
 ```
 erasmus-platform/
-├── database/                        # SQL migration dosyaları
-│   ├── 001_create_app_user_and_db.sql
-│   ├── 002_extensions_and_schema.sql
-│   ├── 003_types.sql
-│   ├── 004_core_tables.sql
-│   ├── 005_content_tables.sql
-│   ├── 006_messaging_tables.sql
-│   ├── 007_social_tables.sql
-│   ├── 008_indexes.sql
-│   ├── 009_triggers.sql
-│   └── 010_seed.sql
-│
+├── database/                    # SQL migration dosyaları (001-011)
 └── erasmus_platform/
-    ├── backend/                     # NestJS API
-    │   ├── src/
-    │   │   ├── auth/                # JWT auth, kayıt/giriş
-    │   │   ├── users/               # Kullanıcı profilleri
-    │   │   ├── posts/               # Post paylaşımları
-    │   │   ├── questions/           # Soru-Cevap sistemi
-    │   │   ├── messages/            # Mesajlaşma + WebSocket
-    │   │   └── common/              # Guard, decorator paylaşımları
-    │   ├── .env                     # ⚠️ Repoda yok — kendin oluştur
-    │   └── package.json
-    │
-    └── mobile/                      # Flutter uygulaması
-        ├── lib/
-        │   ├── core/
-        │   │   ├── api/             # Dio HTTP client, Socket client
-        │   │   ├── storage/         # JWT token storage
-        │   │   └── router/          # GoRouter navigasyon
-        │   ├── features/
-        │   │   ├── auth/            # Giriş/Kayıt ekranları
-        │   │   ├── profile/         # Profil ekranları
-        │   │   ├── feed/            # Feed ve post ekranları
-        │   │   ├── questions/       # Soru-Cevap ekranları
-        │   │   └── messages/        # Mesajlaşma ekranları
-        │   └── shared/
-        │       └── screens/         # Ana shell (bottom nav)
-        └── pubspec.yaml
+    ├── backend/                 # NestJS sunucu
+    │   └── src/
+    │       ├── auth/            # Kimlik doğrulama
+    │       ├── users/           # Kullanıcı, profil, takip, değişim
+    │       ├── posts/           # Gönderiler, beğeni, yorum
+    │       ├── questions/       # Soru-cevap
+    │       ├── reviews/         # Üniversite değerlendirmeleri
+    │       ├── messages/        # Gerçek zamanlı mesajlaşma
+    │       ├── notifications/   # Bildirimler
+    │       └── upload/          # Cloudinary görsel yükleme
+    └── mobile/                  # Flutter uygulaması
+        └── lib/
+            ├── core/            # API istemcisi, depolama, yardımcılar
+            ├── features/        # Özellik bazlı ekranlar
+            │   ├── auth/
+            │   ├── feed/
+            │   ├── questions/
+            │   ├── reviews/
+            │   ├── messages/
+            │   ├── notifications/
+            │   ├── profile/
+            │   ├── search/
+            │   └── splash/
+            └── shared/          # Ortak bileşenler (alt menü vb.)
 ```
 
 ---
 
-## API Endpoint'leri
+## API Uç Noktaları
 
-| Method | Endpoint | Açıklama | Auth Gerekli |
-|--------|----------|----------|--------------|
-| POST | `/auth/register` | Yeni kullanıcı kaydı | Hayır |
-| POST | `/auth/login` | Giriş yap | Hayır |
-| GET | `/users/me` | Kendi profilini getir | Evet |
-| PATCH | `/users/me` | Profili güncelle | Evet |
-| GET | `/users/:username` | Kullanıcı profilini getir | Evet |
-| GET | `/posts` | Feed listesi | Hayır |
-| POST | `/posts` | Yeni post oluştur | Evet |
-| GET | `/posts/:id` | Post detayı | Hayır |
-| GET | `/questions` | Soru listesi | Hayır |
-| POST | `/questions` | Yeni soru sor | Evet |
-| GET | `/questions/:id` | Soru detayı + cevaplar | Hayır |
-| POST | `/questions/:id/answers` | Cevap yaz | Evet |
-| GET | `/messages/conversations` | Konuşma listesi | Evet |
-| POST | `/messages/conversations/direct` | DM başlat | Evet |
-| GET | `/messages/conversations/:id/messages` | Mesajları getir | Evet |
+| Metot | Uç Nokta | İşlev |
+|-------|----------|-------|
+| POST | `/auth/register` | Kullanıcı kaydı |
+| POST | `/auth/login` | Kullanıcı girişi |
+| GET | `/posts` | Akış gönderileri |
+| POST | `/posts` | Yeni gönderi |
+| POST | `/posts/:id/like` | Gönderi beğen |
+| GET | `/posts/search?q=` | Gönderi ara |
+| GET | `/questions` | Sorular |
+| POST | `/reviews` | Değerlendirme oluştur |
+| GET | `/reviews/university/:id` | Üniversite değerlendirmeleri |
+| POST | `/users/:username/follow` | Takip et |
+| GET | `/users/:username/followers` | Takipçiler |
+| GET | `/notifications` | Bildirimler |
+| GET | `/messages/conversations` | Konuşmalar |
 
 ---
 
 ## Sık Karşılaşılan Sorunlar
 
-**PostgreSQL servisi başlamıyor (Windows)**
-```powershell
-# PowerShell'de servis adını bul:
-Get-Service | Where-Object {$_.DisplayName -like "*postgres*"}
-# Sonra başlat:
-Start-Service postgresql-x64-18
-```
+**NestJS yönlendirme çakışması (`invalid input syntax for type uuid`):**
+Statik yollar (`/search`, `/countries`) parametre içeren yollardan (`/:id`) **önce** tanımlanmalıdır.
 
-**`npm run start:dev` script hatası (Windows)**
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-```
+**Release APK'da kayıt/giriş başarısız:**
+`AndroidManifest.xml` dosyasında `INTERNET` izni eksik olabilir.
 
-**Flutter API'ye bağlanamıyor**
-→ `api_client.dart`'taki URL'i kontrol et:
-- Chrome → `localhost`
-- Emülatör → `10.0.2.2`
-- Gerçek cihaz → bilgisayarının IP adresi
+**Gerçek cihazda bağlantı yok:**
+Telefon ve bilgisayar aynı WiFi ağında olmalı; `baseUrl` bilgisayarın yerel IP adresini göstermeli (ya da bulut URL'i kullanılmalı).
 
-**500 Internal Server Error**
-→ pgAdmin'de şu SQL'i çalıştır:
-```sql
-GRANT ALL PRIVILEGES ON SCHEMA app TO erasmus_user;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA app TO erasmus_user;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA app TO erasmus_user;
-```
-
-**`socket_io_client` hatası (Chrome'da)**
-→ WebSocket sadece gerçek cihaz veya emülatörde çalışır. Chrome'da mesajlaşma ekranı devre dışıdır, bu normaldir.
+**Railway'de eksik tablo:**
+Migration dosyalarının tümünün Railway veritabanında çalıştırıldığından emin olun.
 
 ---
 
-## Geliştirici
+## Lisans
 
-**Elif Durmuş** — BM328 Bilgisayar Mühendisliği Tasarım Çalışması II
+Bu proje, akademik bir tasarım çalışması olarak geliştirilmiştir.

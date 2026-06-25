@@ -9,7 +9,8 @@ class MainShell extends StatelessWidget {
     if (location.startsWith('/feed')) return 0;
     if (location.startsWith('/questions')) return 1;
     if (location.startsWith('/messages')) return 2;
-    if (location.startsWith('/profile')) return 3;
+    if (location.startsWith('/reviews')) return 3;
+    if (location.startsWith('/profile')) return 4;
     return 0;
   }
 
@@ -26,13 +27,15 @@ class MainShell extends StatelessWidget {
             case 0: context.go('/feed'); break;
             case 1: context.go('/questions'); break;
             case 2: context.go('/messages'); break;
-            case 3: context.go('/profile'); break;
+            case 3: context.go('/reviews'); break;
+            case 4: context.go('/profile'); break;
           }
         },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Feed'),
           NavigationDestination(icon: Icon(Icons.help_outline), selectedIcon: Icon(Icons.help), label: 'Sorular'),
           NavigationDestination(icon: Icon(Icons.chat_bubble_outline), selectedIcon: Icon(Icons.chat_bubble), label: 'Mesajlar'),
+          NavigationDestination(icon: Icon(Icons.star_outline), selectedIcon: Icon(Icons.star), label: 'Puanlar'),
           NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profil'),
         ],
       ),

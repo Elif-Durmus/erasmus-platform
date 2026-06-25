@@ -7,20 +7,29 @@ class AuthState {
   final bool isLoading;
   final String? error;
   final bool isAuthenticated;
+  final bool isInitializing;
   final Map<String, dynamic>? user;
 
   const AuthState({
     this.isLoading = false,
     this.error,
     this.isAuthenticated = false,
+    this.isInitializing = true,
     this.user,
   });
 
-  AuthState copyWith({bool? isLoading, String? error, bool? isAuthenticated, Map<String, dynamic>? user}) {
+  AuthState copyWith({
+    bool? isLoading,
+    String? error,
+    bool? isAuthenticated,
+    bool? isInitializing,
+    Map<String, dynamic>? user,
+  }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
       error: error,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+      isInitializing: isInitializing ?? this.isInitializing,
       user: user ?? this.user,
     );
   }
@@ -32,8 +41,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> _checkToken() async {
+    // Splash'ın görünmesi için minik bir gecikme (en az 1.5 sn)
+    await Future.delayed(const Duration(milliseconds: 1500));
     final has = await TokenStorage.hasToken();
-    if (has) state = state.copyWith(isAuthenticated: true);
+    state = state.copyWith(
+      isAuthenticated: has,
+      isInitializing: false,
+    );
   }
 
   Future<bool> register({
@@ -51,11 +65,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
         'username': username,
       });
       await TokenStorage.saveToken(res.data['token']);
-      state = state.copyWith(isLoading: false, isAuthenticated: true, user: res.data['user']);
+      state = state.copyWith(
+        isLoading: false,
+        isAuthenticated: true,
+        isInitializing: false,
+        user: res.data['user'],
+      );
       return true;
     } on DioException catch (e) {
       final msg = e.response?.data?['message'] ?? 'Kayıt başarısız';
-      state = state.copyWith(isLoading: false, error: msg is List ? msg.join(', ') : msg.toString());
+      state = state.copyWith(
+        isLoading: false,
+        error: msg is List ? msg.join(', ') : msg.toString(),
+      );
       return false;
     }
   }
@@ -68,7 +90,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         'password': password,
       });
       await TokenStorage.saveToken(res.data['token']);
-      state = state.copyWith(isLoading: false, isAuthenticated: true, user: res.data['user']);
+      state = state.copyWith(
+        isLoading: false,
+        isAuthenticated: true,
+        isInitializing: false,
+        user: res.data['user'],
+      );
       return true;
     } on DioException catch (e) {
       final msg = e.response?.data?['message'] ?? 'Giriş başarısız';
@@ -79,7 +106,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     await TokenStorage.deleteToken();
-    state = const AuthState(isAuthenticated: false);
+    state = const AuthState(isAuthenticated: false, isInitializing: false);
   }
 }
 

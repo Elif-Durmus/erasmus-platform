@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/time_ago.dart';
 
 class PostCard extends StatelessWidget {
   final Map<String, dynamic> post;
@@ -38,7 +39,7 @@ class PostCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => context.go('/posts/${post['id']}'),
+        onTap: () => context.push('/posts/${post['id']}'),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -46,25 +47,60 @@ class PostCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundImage: profile?['profilePhotoUrl'] != null
-                        ? NetworkImage(profile!['profilePhotoUrl'])
-                        : null,
-                    child: profile?['profilePhotoUrl'] == null
-                        ? Text((profile?['fullName'] as String?)?.substring(0, 1).toUpperCase() ?? '?')
-                        : null,
+                  GestureDetector(
+                    onTap: () {
+                      final username = profile?['username'];
+                      if (username != null) {
+                        context.push('/profile/$username');
+                      }
+                    },
+                    child: CircleAvatar(
+                      radius: 18,
+                      backgroundImage: profile?['profilePhotoUrl'] != null
+                          ? NetworkImage(profile!['profilePhotoUrl'])
+                          : null,
+                      child: profile?['profilePhotoUrl'] == null
+                          ? Text((profile?['fullName'] as String?)
+                                  ?.substring(0, 1)
+                                  .toUpperCase() ??
+                              '?')
+                          : null,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(profile?['fullName'] ?? 'Kullanıcı',
-                            style: const TextStyle(fontWeight: FontWeight.w600)),
-                        Text('@${profile?['username'] ?? ''}',
-                            style: Theme.of(context).textTheme.bodySmall),
-                      ],
+                    child: GestureDetector(
+                      onTap: () {
+                        final username = profile?['username'];
+                        if (username != null) {
+                          context.push('/profile/$username');
+                        }
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(profile?['fullName'] ?? 'Kullanıcı',
+                              style: const TextStyle(fontWeight: FontWeight.w600)),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  '@${profile?['username'] ?? ''}',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ),
+                              if (post['createdAt'] != null) ...[
+                                Text(' · ', style: Theme.of(context).textTheme.bodySmall),
+                                Text(
+                                  timeAgo(post['createdAt']),
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   Container(
@@ -97,12 +133,14 @@ class PostCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(Icons.favorite_border, size: 18, color: Theme.of(context).colorScheme.outline),
+                  Icon(Icons.favorite_border,
+                      size: 18, color: Theme.of(context).colorScheme.outline),
                   const SizedBox(width: 4),
                   Text('${post['likeCount'] ?? 0}',
                       style: Theme.of(context).textTheme.bodySmall),
                   const SizedBox(width: 16),
-                  Icon(Icons.comment_outlined, size: 18, color: Theme.of(context).colorScheme.outline),
+                  Icon(Icons.comment_outlined,
+                      size: 18, color: Theme.of(context).colorScheme.outline),
                   const SizedBox(width: 4),
                   Text('${post['commentCount'] ?? 0}',
                       style: Theme.of(context).textTheme.bodySmall),

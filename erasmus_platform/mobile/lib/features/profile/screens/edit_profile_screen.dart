@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/api/api_client.dart';
+import '../../../core/api/upload_service.dart';
 import '../providers/profile_provider.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -18,6 +21,38 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _studyLevelCtrl = TextEditingController();
   bool _loading = false;
   bool _initialized = false;
+  File? _imageFile;
+  bool _uploadingPhoto = false;
+  String? _selectedDepartment;
+  String? _selectedStudyLevel;
+  bool _isOtherDepartment = false;
+
+  final List<String> _departments = [
+    'Bilgisayar Mühendisliği',
+    'Elektrik-Elektronik Mühendisliği',
+    'Makine Mühendisliği',
+    'Endüstri Mühendisliği',
+    'İnşaat Mühendisliği',
+    'Mimarlık',
+    'İşletme',
+    'İktisat',
+    'Hukuk',
+    'Tıp',
+    'Psikoloji',
+    'Mütercim-Tercümanlık',
+    'Uluslararası İlişkiler',
+    'İletişim / Medya',
+    'Eğitim Bilimleri',
+    'Güzel Sanatlar',
+    'Diğer',
+  ];
+
+  final List<String> _studyLevels = [
+    'Ön Lisans',
+    'Lisans',
+    'Yüksek Lisans',
+    'Doktora',
+  ];
 
   @override
   void dispose() {
@@ -32,9 +67,58 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     if (_initialized) return;
     _fullNameCtrl.text = profile['fullName'] ?? '';
     _bioCtrl.text = profile['bio'] ?? '';
-    _departmentCtrl.text = profile['department'] ?? '';
-    _studyLevelCtrl.text = profile['studyLevel'] ?? '';
+
+    // Bölüm
+    final dept = profile['department'] as String?;
+    if (dept != null && dept.isNotEmpty) {
+      if (_departments.contains(dept)) {
+        _selectedDepartment = dept;
+      } else {
+        _selectedDepartment = 'Diğer';
+        _isOtherDepartment = true;
+        _departmentCtrl.text = dept;
+      }
+    }
+
+    // Eğitim seviyesi
+    final level = profile['studyLevel'] as String?;
+    if (level != null && _studyLevels.contains(level)) {
+      _selectedStudyLevel = level;
+    }
+
     _initialized = true;
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+      maxWidth: 500,
+      maxHeight: 500,
+    );
+    if (picked == null) return;
+
+    setState(() {
+      _imageFile = File(picked.path);
+      _uploadingPhoto = true;
+    });
+
+    final url = await UploadService.uploadProfilePhoto(_imageFile!);
+
+    if (mounted) {
+      setState(() => _uploadingPhoto = false);
+      if (url != null) {
+        ref.refresh(myProfileProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Fotoğraf güncellendi')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Fotoğraf yüklenemedi')),
+        );
+      }
+    }
   }
 
   Future<void> _save() async {
@@ -49,8 +133,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       await apiClient.dio.patch('/users/me', data: {
         'fullName': _fullNameCtrl.text.trim(),
         'bio': _bioCtrl.text.trim().isEmpty ? null : _bioCtrl.text.trim(),
-        'department': _departmentCtrl.text.trim().isEmpty ? null : _departmentCtrl.text.trim(),
-        'studyLevel': _studyLevelCtrl.text.trim().isEmpty ? null : _studyLevelCtrl.text.trim(),
+        'department': _selectedDepartment == 'Diğer'
+            ? (_departmentCtrl.text.trim().isEmpty
+                ? null
+                : _departmentCtrl.text.trim())
+            : _selectedDepartment,
+        'studyLevel': _selectedStudyLevel,
       });
       ref.refresh(myProfileProvider);
       if (mounted) {
@@ -103,16 +191,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                // Profil fotoğrafı placeholder
                 Center(
                   child: Stack(
                     children: [
                       CircleAvatar(
                         radius: 48,
-                        backgroundImage: profile['profilePhotoUrl'] != null
-                            ? NetworkImage(profile['profilePhotoUrl'])
-                            : null,
-                        child: profile['profilePhotoUrl'] == null
+                        backgroundImage: _imageFile != null
+                            ? FileImage(_imageFile!) as ImageProvider
+                            : profile['profilePhotoUrl'] != null
+                                ? NetworkImage(profile['profilePhotoUrl'])
+                                : null,
+                        child: _imageFile == null &&
+                                profile['profilePhotoUrl'] == null
                             ? Text(
                                 (profile['fullName'] as String?)
                                         ?.substring(0, 1)
@@ -125,14 +215,26 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       Positioned(
                         bottom: 0,
                         right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary,
-                            shape: BoxShape.circle,
+                        child: GestureDetector(
+                          onTap: _uploadingPhoto ? null : _pickImage,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: _uploadingPhoto
+                                ? const SizedBox(
+                                    height: 18,
+                                    width: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.camera_alt,
+                                    size: 18, color: Colors.white),
                           ),
-                          child: const Icon(Icons.camera_alt,
-                              size: 18, color: Colors.white),
                         ),
                       ),
                     ],
@@ -157,20 +259,56 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _departmentCtrl,
+                // Bölüm dropdown
+                DropdownButtonFormField<String>(
+                  value: _selectedDepartment,
+                  isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Bölüm',
                     prefixIcon: Icon(Icons.school_outlined),
                   ),
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('Seçiniz')),
+                    ..._departments.map((d) => DropdownMenuItem(
+                          value: d,
+                          child: Text(d, overflow: TextOverflow.ellipsis),
+                        )),
+                  ],
+                  onChanged: (val) {
+                    setState(() {
+                      _selectedDepartment = val;
+                      _isOtherDepartment = val == 'Diğer';
+                      if (!_isOtherDepartment) _departmentCtrl.clear();
+                    });
+                  },
                 ),
+                // "Diğer" seçilince serbest metin kutusu
+                if (_isOtherDepartment) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _departmentCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Bölümünüzü yazın',
+                      prefixIcon: Icon(Icons.edit_outlined),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _studyLevelCtrl,
+                // Eğitim seviyesi dropdown
+                DropdownButtonFormField<String>(
+                  value: _selectedStudyLevel,
                   decoration: const InputDecoration(
-                    labelText: 'Eğitim Seviyesi (Lisans, Yüksek Lisans...)',
+                    labelText: 'Eğitim Seviyesi',
                     prefixIcon: Icon(Icons.workspace_premium_outlined),
                   ),
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('Seçiniz')),
+                    ..._studyLevels.map((l) => DropdownMenuItem(
+                          value: l,
+                          child: Text(l),
+                        )),
+                  ],
+                  onChanged: (val) => setState(() => _selectedStudyLevel = val),
                 ),
               ],
             ),
